@@ -37,7 +37,7 @@ or implied, of Rafael Muñoz Salinas.
 #include "aruco.h"
 #include "cvdrawingutils.h"
 #include <iostream>
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 using namespace std;
 using namespace cv;
 using namespace aruco;

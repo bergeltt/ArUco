@@ -29,8 +29,8 @@ or implied, of Rafael Muñoz Salinas.
 #include "markermap.h"
 #include <fstream>
 #include <map>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 using namespace std;
 
 void getRTfromMatrix44(const cv::Mat& M, cv::Mat& R, cv::Mat& T)

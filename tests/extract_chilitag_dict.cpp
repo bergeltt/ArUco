@@ -3,7 +3,7 @@
 #include <bitset>
 #include <fstream>
 #include <iostream>
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <sstream>
 #include <stdint.h>
 #include <vector>

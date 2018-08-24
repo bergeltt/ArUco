@@ -31,9 +31,9 @@ or implied, of Rafael Muñoz Salinas.
 
 #include <fstream>
 #include <iostream>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <sstream>
 #include "aruco.h"
 #include "aruco_calibration_grid_board_a4.h"

@@ -1,5 +1,5 @@
 #include <iostream>
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include "aruco.h"
 #include "ippe.h"
 using namespace std;

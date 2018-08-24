@@ -39,8 +39,8 @@ or implied, of Rafael Muñoz Salinas.
 #include "ippe.h"
 #include <iostream>
 #include <fstream>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <string>
 using namespace cv;
 using namespace std;

@@ -29,7 +29,7 @@ or implied, of Rafael Muñoz Salinas.
 #include "markermap.h"
 #include "calibrator.h"
 #include "levmarq.h"
-#include <opencv2/calib3d.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 using namespace std;
 namespace aruco{
 //portable calibration function

@@ -31,7 +31,8 @@ or implied, of Rafael Muñoz Salinas.
 #include "dictionary.h"
 #include "markermap.h"
 #include <cstdio>
-#include <opencv2/highgui.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <string>
 #include <stdexcept>
 

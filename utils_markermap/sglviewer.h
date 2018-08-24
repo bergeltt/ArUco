@@ -32,8 +32,8 @@ or implied, of Rafael Muñoz Salinas.
 #ifndef _SGL_OpenCV_VIewer_H
 #define _SGL_OpenCV_VIewer_H
 #include "sgl.h"
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "markermap.h"
 #include <string>
 #include <thread>
