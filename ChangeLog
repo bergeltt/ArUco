@@ -1,5 +1,9 @@
+Version 3.0.8
+    - Changed CameraParameters::operator<< to output xml files
+    - Corrected bug in arucoConfig.cmake in windows systems that ffected to integration of aruco in other projects
+
 Version 3.0.7
-	- properly adapted to compile in Android
+    - properly adapted to compile in Android
     - arucoConfig file is now saved in aruco/arucoConfig.cmake
     - Added control of big jumps in MarkerMapPoseTracker. Allows to set a maximum difference with previous position to avoid errors
 Version 3.0.6

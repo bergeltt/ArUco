@@ -72,7 +72,6 @@ int main(int argc, char** argv)
         }
 
         aruco::CameraParameters CamParam;
-
         // read the input image
         cv::Mat InImage;
         // Open input and read image
@@ -88,7 +87,7 @@ int main(int argc, char** argv)
         float MarkerSize = std::stof(cml("-s", "-1"));
         // Create the detector
         MarkerDetector MDetector;
-        if(cml["-f"]){//uses a configuration file. YOu can create it from aruco_test application
+         if(cml["-f"]){//uses a configuration file. YOu can create it from aruco_test application
                 MDetector.loadParamsFromFile(cml("-f"));
         }
         else{

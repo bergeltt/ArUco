@@ -130,6 +130,10 @@ namespace aruco
         static cv::Mat getRTMatrix(const cv::Mat& R_, const cv::Mat& T_, int forceType);
 
 
+        /**Makes this invalid
+         */
+        void clear();
+
         ARUCO_EXPORT friend std::ostream &operator<<(std::ostream &str,const CameraParameters&cp);
         ARUCO_EXPORT friend std::istream &operator>>(std::istream &str,CameraParameters&cp);
     private:

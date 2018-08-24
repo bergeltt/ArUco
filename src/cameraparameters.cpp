@@ -70,6 +70,11 @@ namespace aruco
         CamSize = CI.CamSize;
         return *this;
     }
+    void CameraParameters::clear(){
+        CameraMatrix=cv::Mat();
+        CamSize=cv::Size(-1,-1);
+        Distorsion=cv::Mat();
+    }
     /**
      */
     void CameraParameters::setParams(cv::Mat cameraMatrix, cv::Mat distorsionCoeff, cv::Size size)
@@ -496,26 +501,106 @@ namespace aruco
         }
     }
     std::ostream &operator<<(std::ostream &str,const CameraParameters&cp){
-        str<<cp.CamSize.width<<" "<<cp.CamSize.height<<" ";
-        for(size_t i=0;i<cp.CameraMatrix.total();i++)
-            str<<cp.CameraMatrix.ptr<float>(0)[i]<<" ";
-        str<<cp.Distorsion.total()<<" ";
-        for(size_t i=0;i<cp.Distorsion.total();i++)
-            str<<cp.Distorsion.ptr<float>(0)[i]<<" ";
-        return str;
+        str<<"%YAML:1.0"<<endl<<"---"<<endl;
+        str<<"image_width:"<<cp.CamSize.width<<endl;
+        str<<"image_height:"<<cp.CamSize.height<<endl;
+        str<<"camera_matrix: !!opencv-matrix"<<endl;
+        str<<" rows: 3"<<endl;
+        str<<" cols: 3"<<endl;
+        str<<" dt: f"<<endl;
+        str<<" data: [";
+       const float *ptr=cp.CameraMatrix.ptr<float>(0);
+        for(int i=0;i<9;i++){
+            str<<ptr[i];
+            if(i!=8)str<<", ";
+            else str<<" ";
+        }
+        str<<"]"<<endl;
 
-    }
-    std::istream &operator>>(std::istream &str,CameraParameters&cp){
-        str>>cp.CamSize.width>>cp.CamSize.height;
-        cp.CameraMatrix.create(3,3,CV_32F);
-        for(size_t i=0;i<cp.CameraMatrix.total();i++)
-            str>>cp.CameraMatrix.ptr<float>(0)[i];
-        int t;
-        str>>t;
-        cp.Distorsion.create(1,t,CV_32F);
-        for(size_t i=0;i<cp.Distorsion.total();i++)
-            str>>cp.Distorsion.ptr<float>(0)[i];
+        str<<"distortion_coefficients: !!opencv-matrix"<<endl;
+           str<<" rows: 1"<<endl;
+           str<<" cols: 5"<<endl;
+           str<<" dt: f"<<endl;
+           str<<" data: [";
+           const float *dif=cp.Distorsion.ptr<float>();
+           for(int i=0;i<5;i++){
+               str<<dif[i];
+               if(i!=4)str<<", ";
+               else str<<" ";
+           }
+           str<<"]"<<endl;
         return str;
+    }
+
+    std::istream &operator>>(std::istream &str,CameraParameters&cp){
+
+        auto getValue=[](string line){
+            //remove ':'
+            for(auto &c:line) if (c==':') c=' ';
+            stringstream ss;
+            ss<<line;
+            string aux;
+            int val;
+            ss>>aux>>val;
+            return val;
+        };
+
+        auto parseDataLine=[](string line,cv::Mat &data){
+          //remove
+            for(auto &c:line)
+                if (c=='[' || c==']'|| c==',' || c==':') c=' ';
+            //now, read
+            stringstream sstr;sstr<<line;
+            string sdata;
+            sstr>>sdata;
+            for(size_t i=0;i<data.total();i++)
+                sstr>>data.ptr<float>(0)[i];
+        };
+
+        cp.CameraMatrix=cv::Mat::eye(3,3,CV_32F);
+        cp.Distorsion.create(1,5,CV_32F);
+        cp.Distorsion=0;
+        string line;
+        std::getline(str,line);
+        if (line.find("%YAML:1.0")==string::npos){
+            std::cerr<<"Invalid input stream"<<std::endl;
+            return str;
+        }
+        bool readingCamera=false,readingDist=false;
+        while(!str.eof()){
+            std::getline(str,line);
+
+
+            if (line.find("image_width")!=string::npos)
+                cp.CamSize.width=getValue(line);
+            else if (line.find("image_height")!=string::npos)
+                cp.CamSize.height=getValue(line);
+            else if (line.find("camera_matrix")!=string::npos){
+                readingCamera=true;
+                //go to data
+            }
+            else if (line.find("distortion_coefficients")!=string::npos){
+                readingDist=true;
+                //go to data
+            }
+            else  if (line.find("data")!=string::npos){
+                if(readingCamera) {
+                    parseDataLine(line,cp.CameraMatrix);
+                    readingCamera=false;
+                }
+                else if(readingDist){
+                    parseDataLine(line,cp.Distorsion);
+                    readingDist=false;
+                }
+            }
+
+
+
+            }
+
+
+
+         return str;
     }
 
 };
