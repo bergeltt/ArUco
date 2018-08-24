@@ -1,3 +1,8 @@
+Version 3.0.10
+- Corrected bug in utils/aruco_test so that custom dictionaries can be employed
+
+Version 3.0.9
+    - Addded old style opencv2/xx/xx.hpp headers to compile with 2.4.9 which is default in 16.04
 Version 3.0.8
     - Changed CameraParameters::operator<< to output xml files
     - Corrected bug in arucoConfig.cmake in windows systems that ffected to integration of aruco in other projects

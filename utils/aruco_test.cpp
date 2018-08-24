@@ -78,7 +78,8 @@ void setParamsFromGlobalVariables(aruco::MarkerDetector &md){
 
     md.getParameters().detectEnclosedMarkers(iEnclosed);
     md.getParameters().ThresHold=iThreshold;
-    md.setDictionary((aruco::Dictionary::DICT_TYPES) iDictionaryIndex,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
+    if ( aruco::Dictionary::getTypeFromString( md.getParameters().dictionary)!=Dictionary::CUSTOM)
+            md.setDictionary((aruco::Dictionary::DICT_TYPES) iDictionaryIndex,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
 }
 
 void createMenu(){

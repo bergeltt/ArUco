@@ -760,9 +760,6 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
     }
 Timer.add("Corner Refinement");
 
-
-
-
 //    auto setPrecision=[](double f, double prec){
 //        int x=roundf(f*prec);
 //        return  double(x)/prec;
@@ -1199,6 +1196,9 @@ void MarkerDetector::setDictionary(int dict_type,
     _params.error_correction_rate=error_correction_rate;
     _params.dictionary=aruco::Dictionary::getTypeString((Dictionary::DICT_TYPES)dict_type);
 }
+
+
+
 
 void MarkerDetector::setDictionary(string dict_type, float error_correction_rate)
 {
