@@ -62,96 +62,135 @@ namespace aruco
          *
          */
 enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
+/** Method employed to refine the estimation of the corners
+* - CORNER_SUBPIX: uses subpixel refinement implemented in opencv
+* - CORNER_LINES: uses all the pixels in the corner border to estimate the 4 lines of the square. Then
+*  estimate the point in which they intersect. In seems that it more robust to noise. However, it only works if input image is not resized.
+*  So, the value minMarkerSize will be set to 0.
+*
+* - CORNER_NONE: Does no refinement of the corner. Again, it requires minMakerSize to be 0
+*/
+enum CornerRefinementMethod: int{CORNER_SUBPIX=0,CORNER_LINES=1,CORNER_NONE=2};
 
 
-
-    class CameraParameters;
-    class MarkerLabeler;
-    /**\brief Main class for marker detection
+class CameraParameters;
+class MarkerLabeler;
+/**\brief Main class for marker detection
      *
      */
-    class ARUCO_EXPORT MarkerDetector
-    {
-    public:
-        enum ThresMethod: int{THRES_ADAPTIVE=0,THRES_AUTO_FIXED=1 };
+class ARUCO_EXPORT MarkerDetector
+{
+    enum ThresMethod: int{THRES_ADAPTIVE=0,THRES_AUTO_FIXED=1 };
+public:
 
-        /**Operating params
+    /**Operating params
          */
-        struct Params
-        {
+    struct ARUCO_EXPORT Params
+    {
 
-            //Detection mode
-
-             DetectionMode detectMode;
-
-            //maximum number of parallel threads
-            int maxThreads=1;//-1 means all
-
-            // border around image limits in which corners are not allowed to be detected. (0,1)
-            float borderDistThres=0.015f;
-            int lowResMarkerSize=20;            //minimum size of a marker in the low resolution image
-
-            // minimum  size of a contour lenght. We use the following formula
-            // minLenght=  min ( _minSize_pix , _minSize* Is)*4
-            // being Is=max(imageWidth,imageHeight)
-            // the value  _minSize are normalized, thus, depends on camera image size
-            // However, _minSize_pix is expressed in pixels (you can use the one you prefer)
-            float minSize=-1;//tau_i in paper
-            int minSize_pix=-1;
-            bool enclosedMarker=false;//special treatment for enclosed markers
-
-
-            void setThresholdMethod(ThresMethod  method,int thresHold=-1,int wsize=-1,int wsize_range=0 ){
-                _AdaptiveThresWindowSize=wsize;
-                _thresMethod=method;
-                if (thresHold==-1){
-                    if ( method==THRES_AUTO_FIXED ) _ThresHold=100;
-                    else _ThresHold=10;
-                }
-                else  _ThresHold=thresHold;
-                _AdaptiveThresWindowSize_range=wsize_range;
-            }
-
-
-            //threshold methods
-            ThresMethod _thresMethod=THRES_ADAPTIVE;
-            int NAttemptsAutoThresFix=3;//number of times that tries a random threshold in case of THRES_AUTO_FIXED
-
-
-            // Threshold parameters
-            int _AdaptiveThresWindowSize=-1, _ThresHold=10, _AdaptiveThresWindowSize_range=0;
-            // size of the image passedta to the MarkerLabeler
-            int _markerWarpPixSize=5;//tau_c in paper
-
-            //
-            //enable/disables the method for automatic size estimation for speed up
-            bool _autoSize=false;
-            float  _ts=0.25f;//$\tau_s$ is a factor in the range $(0,1]$ that accounts for the camera motion speed. For instance, when $\tau_s=0.1$, it means that in the next frame, $\tau_i$ is such that markers $10\%$ smaller than the smallest marker in the current image  will be seek. To avoid loosing track of the markers. If no markers are detected in a frame, $\tau_i$ is set to zero for the next frame so that markers of any size can be detected.
-            /**Enables automatic image resize according to elements detected in previous frame
-             * @param v
-             * @param ts  is a factor in the range $(0,1]$ that accounts for the camera motion speed. For instance, when ts=0.1 , it means that in the next frame, $\tau_i$ is such that markers $10\%$ smaller than the smallest marker in the current image  will be seek. To avoid loosing track of the markers.
+        /**Specifies the detection mode. We have preset three types of detection modes. These are
+             * ways to configure the internal parameters for the most typical situations. The modes are:
+             * - DM_NORMAL: In this mode, the full resolution image is employed for detection and slow threshold method. Use this method when
+             * you process individual images that are not part of a video sequence and you are not interested in speed.
+             *
+             * - DM_FAST: In this mode, there are two main improvements. First, image is threshold using a faster method using a global threshold.
+             * Also, the full resolution image is employed for detection, but, you could speed up detection even more by indicating a minimum size of the
+             * markers you will accept. This is set by the variable minMarkerSize which shoud be in range [0,1]. When it is 0, means that you do not set
+             * a limit in the size of the accepted markers. However, if you set 0.1, it means that markers smaller than 10% of the total image area, will not
+             * be detected. Then, the detection can be accelated up to orders of magnitude compared to the normal mode.
+             *
+             * - DM_VIDEO_FAST: This is similar to DM_FAST, but specially adapted to video processing. In that case, we assume that the observed markers
+             * when you call to detect() have a size similar to the ones observed in the previous frame. Then, the processing can be speeded up by employing smaller versions
+             * of the image automatically calculated.
+             *
              */
-            void setAutoSizeSpeedUp(bool v,float ts=0.25){_autoSize=v;_ts=ts;}
-            bool getAutoSizeSpeedUp()const{return _autoSize;}
+        void  setDetectionMode( DetectionMode dm,float minMarkerSize);
 
-            float pyrfactor=2;
-            void  setDetectionMode( DetectionMode dm,float minMarkerSize){
-                detectMode=dm;
-                minSize=minMarkerSize;
-                if(detectMode==DM_NORMAL){
-                    setAutoSizeSpeedUp(false);
-                    setThresholdMethod(THRES_ADAPTIVE);
-                }
-                else if (detectMode==DM_FAST ){
-                    setAutoSizeSpeedUp(false);
-                    setThresholdMethod(THRES_AUTO_FIXED);
-                }
-                else if(detectMode==DM_VIDEO_FAST){
-                    setThresholdMethod(THRES_AUTO_FIXED);
-                    setAutoSizeSpeedUp(true,0.3);
-                }
-            }
-        };
+        /**Enables/Disbles the detection of enclosed markers. Enclosed markers are markers where corners are like opencv chessboard pattern
+             */
+        void detectEnclosedMarkers(bool do_){enclosedMarker=do_;}
+
+        /**Sets the corner refinement method
+             * - CORNER_SUBPIX: uses subpixel refinement implemented in opencv
+             * - CORNER_LINES: uses all the pixels in the corner border to estimate the 4 lines of the square. Then
+             *  estimate the point in which they intersect. In seems that it more robust to noise. However, it only works if input image is not resized.
+             *  So, the value minMarkerSize will be set to 0.
+             *
+             * - CORNER_NONE: Does no refinement of the corner. Again, it requires minMakerSize to be 0
+             */
+        void setCornerRefinementMethod( CornerRefinementMethod method);
+
+
+        //-----------------------------------------------------------------------------
+        // Below this point you probably should not use the functions
+        /**Sets the thresholding method manually. Do no
+             */
+        void setThresholdMethod(ThresMethod  method,int thresHold=-1,int wsize=-1,int wsize_range=0 );
+
+
+
+        void setAutoSizeSpeedUp(bool v,float ts=0.25){autoSize=v;ts=ts;}
+        bool getAutoSizeSpeedUp()const{return autoSize;}
+
+
+
+
+
+        void save(cv::FileStorage &fs)const;
+        void load(cv::FileStorage &fs);
+
+        void toStream(std::ostream &str)const;
+        void fromStream(std::istream &str);
+
+        static std::string toString(DetectionMode dm);
+        static DetectionMode getDetectionModeFromString(const std::string &str);
+        static std::string toString(CornerRefinementMethod dm);
+        static CornerRefinementMethod getCornerRefinementMethodFromString(const std::string &str);
+        static std::string toString(ThresMethod dm);
+        static ThresMethod getCornerThresMethodFromString(const std::string &str);
+
+        //Detection mode
+
+        DetectionMode detectMode;
+
+        //maximum number of parallel threads
+        int maxThreads=1;//-1 means all
+
+        // border around image limits in which corners are not allowed to be detected. (0,1)
+        float borderDistThres=0.015f;
+        int lowResMarkerSize=20;            //minimum size of a marker in the low resolution image
+
+        // minimum  size of a contour lenght. We use the following formula
+        // minLenght=  min ( _minSize_pix , _minSize* Is)*4
+        // being Is=max(imageWidth,imageHeight)
+        // the value  _minSize are normalized, thus, depends on camera image size
+        // However, _minSize_pix is expressed in pixels (you can use the one you prefer)
+        float minSize=-1;//tau_i in paper
+        int minSize_pix=-1;
+        bool enclosedMarker=false;//special treatment for enclosed markers
+        float error_correction_rate=0;
+        std::string dictionary;
+        //threshold methods
+        ThresMethod thresMethod=THRES_ADAPTIVE;
+        int NAttemptsAutoThresFix=3;//number of times that tries a random threshold in case of THRES_AUTO_FIXED
+
+
+        // Threshold parameters
+        int AdaptiveThresWindowSize=-1, ThresHold=7, AdaptiveThresWindowSize_range=0;
+        // size of the image passedta to the MarkerLabeler
+        int markerWarpPixSize=5;//tau_c in paper
+
+        CornerRefinementMethod cornerRefinementM=CORNER_SUBPIX;
+        //enable/disables the method for automatic size estimation for speed up
+        bool autoSize=false;
+        float  ts=0.25f;//$\tau_s$ is a factor in the range $(0,1]$ that accounts for the camera motion speed. For instance, when $\tau_s=0.1$, it means that in the next frame, $\tau_i$ is such that markers $10\%$ smaller than the smallest marker in the current image  will be seek. To avoid loosing track of the markers. If no markers are detected in a frame, $\tau_i$ is set to zero for the next frame so that markers of any size can be detected.
+        /**Enables automatic image resize according to elements detected in previous frame
+                 * @param v
+                 * @param ts  is a factor in the range $(0,1]$ that accounts for the camera motion speed. For instance, when ts=0.1 , it means that in the next frame, $\tau_i$ is such that markers $10\%$ smaller than the smallest marker in the current image  will be seek. To avoid loosing track of the markers.
+                 */
+        float pyrfactor=2;
+
+    };
 
         /**
          * See
@@ -166,6 +205,15 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
          * We recommend using values from 0 to 0.5. (in general, this will allow up to 3 bits or correction).       */
         MarkerDetector(int dict_type, float error_correction_rate = 0);
         MarkerDetector(std::string dict_type, float error_correction_rate = 0);
+
+        /**Saves the configuration of the detector to a file.
+         */
+        void saveParamsToFile(const std::string &path)const;
+
+        /**Loads the configuration from a file.
+         */
+        void loadParamsFromFile(const std::string &path);
+
 
         /**
          */
@@ -190,10 +238,7 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
         /**returns current detection mode
          */
         DetectionMode getDetectionMode( );
-        /**Indicates if the markers are enclosed
-         */
-        void detectEnclosedMarkers(bool v);
-        /**Detects the markers in the image passed
+         /**Detects the markers in the image passed
          *
          * If you provide information about the camera parameters and the size of the marker, then, the extrinsics of
          * the markers are detected
@@ -245,14 +290,12 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
                     cv::Mat distCoeff = cv::Mat(), float markerSizeMeters = -1,
                     bool setYPerperdicular = false);
 
-//        /**Sets operating params
-//         */
-//        void setParams(Params p);
-//        /**Returns operating params
-//         */
+
+        /**Returns operating params
+         */
         Params getParameters() const{return _params;}
-//        /**Returns operating params
-//         */
+        /**Returns operating params
+         */
         Params & getParameters() {return _params;}
         /** Sets the dictionary to be employed.
          * You can choose:ARUCO,//original aruco dictionary. By default
@@ -336,11 +379,6 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
             int idx;                    // index position in the global contour list
         };
 
-        /**
-        * Detection of candidates to be markers, i.e., rectangles.
-        * This function returns in candidates all the rectangles found in a thresolded image
-        */
-//        void detectRectangles(const ThresImage &thresImg, vector<std::vector<cv::Point2f>>& candidates);
 
         /**Returns a list candidates to be markers (rectangles), for which no valid id was found after calling
          * detectRectangles
@@ -361,6 +399,11 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
         bool warp(cv::Mat& in, cv::Mat& out, cv::Size size, std::vector<cv::Point2f> points);
 
 
+        //serialization in binary mode
+        void toStream(std::ostream &str)const;
+        void fromStream(std::istream &str);
+        //configure the detector from a set of parameters
+        void setParameters(const Params &params);
 
 
     private:
@@ -504,6 +547,27 @@ enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
             }
 
             float _tooNearDistance=-1;//pixel distance between nearr rectangle. Computed automatically based on the params
+    private:
+    template<typename Type>
+    static bool attemtpRead(const std::string &name,Type &var,cv::FileStorage&fs ){
+        if ( fs[name].type()!=cv::FileNode::NONE){
+            fs[name]>>var;
+            return true;
+        }
+        return false;
+    }
+
+    static void _toStream(const std::string &strg,std::ostream &str){
+        uint32_t s=strg.size();
+        str.write((char*)&s,sizeof(s));
+        str.write(strg.c_str(),strg.size());
+    }
+    static void _fromStream(std::string &strg,std::istream &str){
+        uint32_t s;
+        str.read((char*)&s,sizeof(s));
+        strg.resize(s);
+        str.read(&strg[0],strg.size());
+    }
 
     };
 };

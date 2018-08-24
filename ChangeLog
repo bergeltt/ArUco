@@ -1,5 +1,13 @@
+Version 3.0.6
+    - Added serialization for MarkerDetector. You can use load/write functions. Allows to save configuration and load it in your app.
+       Use aruco_test to set the best configuration and press 'f' on the app to save the file. Use the file in your apps
+    - Modified aruco_test to allow saving the configuration file.
+    - Added support for enclosed corners calling MarkerDetector::getParameters().detectEnclosedMarkers(true);
+        This is yet experimental.
+    - Added multiples modes of corner refinement (subpixel, lines and none). See MarkerDetector::Params::setCornerRefinementMethod
+    - Improvement in aruco_test application to have more control over the params. Also, allows to save the configuration to file pressing 'f'
 Version 3.0.5
-	- Moved all parameters used in MarkerDetector to MarkerDetector::Params so as to allow serialization 
+    - Moved all parameters used in MarkerDetector to MarkerDetector::Params so as to allow serialization
     - Initial support for enclosed markers
     - Automatic estimation of the adaptive threshold window size as a function of the image dimensions
     - Corrected bug in MarkerMapPoseTracker::setParams with the maps expressed in pixels

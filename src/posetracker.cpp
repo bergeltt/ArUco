@@ -479,6 +479,11 @@ inline double getHubberMonoWeight(double SqErr,double Information){
 
     bool MarkerMapPoseTracker::estimatePose(const std::vector<Marker>& v_m)
     {
+        cv::Mat _prevr,_prevt;
+        if (!_rvec.empty()){
+            _prevr=_rvec.clone();
+            _prevt=_tvec.clone();
+        }
         std::vector<cv::Point2f> p2d;
         std::vector<cv::Point3f> p3d;
         for (auto marker : v_m)
@@ -515,6 +520,17 @@ inline double getHubberMonoWeight(double SqErr,double Information){
             //refine
             __aruco_solve_pnp(p3d, p2d, _cam_params.CameraMatrix, _cam_params.Distorsion, _rvec, _tvec);
 
+            //check distance and rotation difference
+//            if ( !_prevr.empty()){
+//                float angle=cv::norm(_prevr-_rvec);
+//                float tdist=cv::norm(_prevt-_tvec);
+//                std::cout<<"angle="<<angle<<" tdist="<<tdist<<std::endl;
+//                if (tdist>0.15 || angle >0.08){
+//                    _rvec=cv::Mat();
+//                    _tvec=cv::Mat();
+//                    return false;
+//                }
+//            }
             return true;
         }
     }

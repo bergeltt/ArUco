@@ -58,7 +58,7 @@ int main(int argc, char** argv)
         CmdLineParser cml(argc, argv);
         if (argc == 1 || cml["-h"])
         {
-            cerr << "Usage: (in_image|video.avi) [-c cameraParams.yml] [-s markerSize] [-d <dicionary>:ALL_DICTS default]  "   << endl;
+            cerr << "Usage: (in_image|video.avi) [-c cameraParams.yml] [-s markerSize] [-d <dicionary>:ALL_DICTS default] [-f arucoConfig.yml] "   << endl;
             cerr << "\tDictionaries: ";
             for (auto dict : aruco::Dictionary::getDicTypes())
                 cerr << dict << " ";
@@ -87,11 +87,17 @@ int main(int argc, char** argv)
         float MarkerSize = std::stof(cml("-s", "-1"));
         // Create the detector
         MarkerDetector MDetector;
+        if(cml["-f"]){//uses a configuration file. YOu can create it from aruco_test application
+                MDetector.loadParamsFromFile(cml("-f"));
+        }
+        else{
 
-        // Set the dictionary you want to work with, if you included option -d in command line
-       //By default, all valid dictionaries are examined
-        if (cml["-d"])
-            MDetector.setDictionary(cml("-d"), 0.f);
+            // Set the dictionary you want to work with, if you included option -d in command line
+           //By default, all valid dictionaries are examined
+            if (cml["-d"])
+                MDetector.setDictionary(cml("-d"), 0.f);
+
+        }
         // Ok, let's detect
         vector<Marker> Markers = MDetector.detect(InImage, CamParam, MarkerSize);
 

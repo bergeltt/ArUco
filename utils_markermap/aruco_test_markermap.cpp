@@ -85,6 +85,7 @@ int main(int argc, char** argv)
             cerr << "Usage: (in.avi|live[:camera_index(e.g 0 or 1)])) marksetconfig.yml camera_intrinsics.yml [optional_arguments]  "
                     "\n\t[-s marker_size] \n\t[-pcd out_pcd_file_with_camera_poses] \n\t[-poses out_file_with_poses] "
                     "\n\t[-mti value: minimum value in range (0,1) for the size of the detected markers. If 0, ] "
+                    "\n\t[-config arucoConfig.yml: Loads the detector configuration from file ] "
                  << endl;
             return false;
         }
@@ -120,7 +121,11 @@ int main(int argc, char** argv)
         TheCameraParameters.readFromXMLFile(argv[3]);
         TheCameraParameters.resize(TheInputImage.size());
         // prepare the detector
+
         TheMarkerDetector.setDictionary( TheMarkerMapConfig.getDictionary());
+
+        if (cml["-config"])
+            TheMarkerDetector.loadParamsFromFile(cml("-config"));
          // prepare the pose tracker if possible
         // if the camera parameers are avaiable, and the markerset can be expressed in meters, then go
 
@@ -129,11 +134,12 @@ int main(int argc, char** argv)
 
         cout << "TheCameraParameters.isValid()=" << TheCameraParameters.isValid() << " "<< TheMarkerMapConfig.isExpressedInMeters() << endl;
 
-        if (TheCameraParameters.isValid() && TheMarkerMapConfig.isExpressedInMeters())
+        if (TheCameraParameters.isValid() && TheMarkerMapConfig.isExpressedInMeters()){
             TheMSPoseTracker.setParams(TheCameraParameters, TheMarkerMapConfig);
+            TheMarkerSize=cv::norm(TheMarkerMapConfig[0][0]- TheMarkerMapConfig[0][1]);
+        }
 
         // Create gui
-
 
         Viewer.setParams(1.5,1280,960,"map_viewer",TheMarkerSize);
         char key = 0;
@@ -217,7 +223,8 @@ void savePosesToFile(string filename, const std::map<int, cv::Mat>& fmp)
     {
         if (!frame.second.empty())
         {
-            getQuaternionAndTranslationfromMatrix44(frame.second, qx, qy, qz, qw, tx, ty, tz);
+            cv::Mat minv=frame.second.inv();
+            getQuaternionAndTranslationfromMatrix44(minv, qx, qy, qz, qw, tx, ty, tz);
             file << frame.first << " " << tx << " " << ty << " " << tz << " " << qx << " " << qy << " " << qz << " "
                  << qw << endl;
         }

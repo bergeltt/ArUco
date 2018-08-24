@@ -47,7 +47,7 @@ Mat TheInputImage,TheInputImageGrey, TheInputImageCopy;
 CameraParameters TheCameraParameters;
 void cvTackBarEvents(int pos, void*);
 string dictionaryString;
-int iDetectMode=0,iMinMarkerSize=0,iCorrectionRate=0,iShowAllCandidates=0,iEnclosed=0;
+int iDetectMode=0,iMinMarkerSize=0,iCorrectionRate=0,iShowAllCandidates=0,iEnclosed=0,iThreshold,iCornerMode,iDictionaryIndex=0;
 
 int waitTime = 0;
 bool showMennu=false,bPrintHelp=false,isVideo=false;
@@ -72,19 +72,27 @@ cv::Mat resize(const cv::Mat& in, int width)
  ************************************/
 void setParamsFromGlobalVariables(aruco::MarkerDetector &md){
 
+
     md.setDetectionMode((DetectionMode)iDetectMode,float(iMinMarkerSize)/1000.);
-    md.detectEnclosedMarkers(iEnclosed);
-    md.setDictionary(dictionaryString,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
+    md.getParameters().setCornerRefinementMethod( (aruco::CornerRefinementMethod) iCornerMode);
+
+    md.getParameters().detectEnclosedMarkers(iEnclosed);
+    md.getParameters().ThresHold=iThreshold;
+    md.setDictionary((aruco::Dictionary::DICT_TYPES) iDictionaryIndex,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
 }
 
 void createMenu(){
-   cv::createTrackbar("DetectMode", "in", &iDetectMode, 2, cvTackBarEvents);
-   cv::createTrackbar("MinMarkerSize", "in", &iMinMarkerSize, 1000, cvTackBarEvents);
-   cv::createTrackbar("ErrorRate", "in", &iCorrectionRate, 10, cvTackBarEvents);
-   cv::createTrackbar("Enclosed", "in", &iEnclosed, 1, cvTackBarEvents);
-   cv::createTrackbar("ShowAll", "in", &iShowAllCandidates, 1, cvTackBarEvents);
+    cv::createTrackbar("Dictionary", "menu", &iDictionaryIndex, 13, cvTackBarEvents);
+   cv::createTrackbar("DetectMode", "menu", &iDetectMode, 2, cvTackBarEvents);
+   cv::createTrackbar("CornerMode", "menu", &iCornerMode, 2, cvTackBarEvents);
 
-
+   cv::createTrackbar("MinMarkerSize", "menu", &iMinMarkerSize, 1000, cvTackBarEvents);
+   cv::createTrackbar("Threshold", "menu", &iThreshold, 40, cvTackBarEvents);
+   cv::createTrackbar("ErrorRate", "menu", &iCorrectionRate, 10, cvTackBarEvents);
+   cv::createTrackbar("Enclosed", "menu", &iEnclosed, 1, cvTackBarEvents);
+   cv::createTrackbar("ShowAll", "menu", &iShowAllCandidates, 1, cvTackBarEvents);
+   iThreshold=MDetector.getParameters().ThresHold;
+   iCornerMode= MDetector.getParameters().cornerRefinementM;
 }
 
 void putText(cv::Mat &im,string text,cv::Point p,float size){
@@ -97,23 +105,34 @@ void putText(cv::Mat &im,string text,cv::Point p,float size){
 }
 void printHelp(cv::Mat &im)
 {
-    (void)im;
-    cv::putText(im,"'m': show/hide menu",cv::Point(10,40),FONT_HERSHEY_SIMPLEX, 0.5f,cv::Scalar(125,255,255),1);
-    cv::putText(im,"'w': write image to file",cv::Point(10,60),FONT_HERSHEY_SIMPLEX, 0.5f,cv::Scalar(125,255,255),1);
-    cv::putText(im,"'t': do a speed test ",cv::Point(10,80),FONT_HERSHEY_SIMPLEX, 0.5f,cv::Scalar(125,255,255),1);
+    float fs=float(im.cols)/float(1200);
 
+    putText(im,"'m': show/hide menu",cv::Point(10,fs*60),fs*0.5f);
+    putText(im,"'s': start/stop video capture",cv::Point(10,fs*80),fs*0.5f);
+    putText(im,"'w': write image to file",cv::Point(10,fs*100),fs*0.5f);
+    putText(im,"'t': do a speed test",cv::Point(10,fs*120),fs*0.5f);
+    putText(im,"'f': saves current configuration to file 'arucoConfig.yml'",cv::Point(10,fs*140),fs*0.5f);
 }
 
 void printInfo(cv::Mat &im){
-    float fs=float(im.cols)/float(800);
+    float fs=float(im.cols)/float(1200);
     putText(im,"fps="+to_string(1./Fps.getAvrg()),cv::Point(10,fs*20),fs*0.5f);
     putText(im,"'h': show/hide help",cv::Point(10,fs*40),fs*0.5f);
     if(bPrintHelp) printHelp(im);
-    else
-    {
-        putText(im,"'h': show/hide help",cv::Point(10,fs*40),fs*0.5f);
-        putText(im,"'m': show/hide menu",cv::Point(10,fs*60),fs*0.5f);
-    }
+}
+
+void printMenuInfo(){
+        cv::Mat image(200,400,CV_8UC3);
+        image=cv::Scalar::all(255);
+        string str="Dictionary="+aruco::Dictionary::getTypeString((aruco::Dictionary::DICT_TYPES) iDictionaryIndex) ;
+
+        cv::putText(image,str,cv::Size(10,20),FONT_HERSHEY_SIMPLEX, 0.35,cv::Scalar(0,0,0),1);
+
+        str="Detection Mode="+MarkerDetector::Params::toString(MDetector.getParameters().detectMode);
+        cv::putText(image,str,cv::Size(10,40),FONT_HERSHEY_SIMPLEX, 0.35,cv::Scalar(0,0,0),1);
+        str="Corner Mode="+MarkerDetector::Params::toString(MDetector.getParameters().cornerRefinementM);;
+        cv::putText(image,str,cv::Size(10,60),FONT_HERSHEY_SIMPLEX, 0.35,cv::Scalar(0,0,0),1);
+        cv::imshow("menu",image);
 }
 
 cv::Mat resizeImage(cv::Mat &in,float resizeFactor){
@@ -194,7 +213,10 @@ int main(int argc, char** argv)
         if (TheCameraParameters.isValid())
             TheCameraParameters.resize(TheInputImage.size());
         dictionaryString=cml("-d", "ALL_DICTS");
+        iDictionaryIndex=(uint64_t)aruco::Dictionary::getTypeFromString(dictionaryString);
          MDetector.setDictionary(dictionaryString,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
+         iThreshold=MDetector.getParameters().ThresHold;
+         iCornerMode= MDetector.getParameters().cornerRefinementM;
 
         cv::namedWindow("in",cv::WINDOW_NORMAL);
         cv::resizeWindow("in",640,480);
@@ -211,9 +233,6 @@ int main(int argc, char** argv)
         char key = 0;
         int index = 0,indexSave=0;
         // capture until press ESC or until the end of the video
-
-
-
 
          do
         {
@@ -254,6 +273,7 @@ int main(int argc, char** argv)
             // DONE! Easy, right?
             // show input with augmented information and  the thresholded image
             printInfo(TheInputImageCopy);
+            if(showMennu)printMenuInfo();
             cv::imshow("thres", resize(MDetector.getThresholdedImage(), 1024));
             cv::imshow("in", TheInputImageCopy);
 
@@ -274,13 +294,14 @@ int main(int argc, char** argv)
 
             }
              if (key=='m') {
+                 if (showMennu)                     cv::destroyWindow("menu");
+                 else {
+                     cv::namedWindow("menu",cv::WINDOW_NORMAL);
+                     cv::resizeWindow("menu",640,480);
+                     createMenu();
+                     printMenuInfo();
+                 }
                 showMennu=!showMennu;
-                if (showMennu) createMenu();
-                else{
-                    cv::destroyWindow("in");
-                    cv::namedWindow("in",cv::WINDOW_NORMAL);
-                    cv::resizeWindow("in",640,480);
-                }
             }
             if (key=='h')bPrintHelp=!bPrintHelp;
 
@@ -294,7 +315,10 @@ int main(int argc, char** argv)
                     // chekc the speed by calculating the mean speed of all iterations
                 }
                 printInfo(TheInputImageCopy);
-
+            }
+            if(key=='f'){
+                cerr<<"Configuration saved to arucoConfig.yml"<<endl;
+                MDetector.saveParamsToFile("arucoConfig.yml");
             }
             index++;  // number of images captured
 
@@ -342,4 +366,6 @@ void cvTackBarEvents(int pos, void*)
 
     cv::imshow("in",  TheInputImageCopy );
     cv::imshow("thres", resize(MDetector.getThresholdedImage(), 1024));
+    if(showMennu)printMenuInfo();
+
 }
