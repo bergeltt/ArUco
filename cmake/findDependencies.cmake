@@ -48,16 +48,3 @@ if(NOT ANDROID_CREATION)
 endif()
 
 
-#Find Qt5 or 4
-#find_package(Qt5Widgets)
-#IF( ${Qt5Widgets_FOUND})
-#    find_package(Qt5OpenGL REQUIRED)
-#    SET(USEQT 1)
-#    SET(USEQT5 1)
-#ELSE()
-#    FIND_PACKAGE(Qt4 QtCore QtGui  )
-#    IF( ${QtCore_FOUND})
-#        SET(USEQT 1)
-#        SET(USEQT4 1)
-#        ENDIF()
-#ENDIF()

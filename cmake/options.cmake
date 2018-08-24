@@ -30,7 +30,6 @@ option(BUILD_UTILS	"Set to OFF to not compile utils " ON)
 option(BUILD_TESTS	"Set to OFF to not compile utils " OFF)
 option(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
 option(BUILD_GLSAMPLES 	"Set to OFF to build static libraries" OFF)
-
 option(USE_TIMERS 	"Set to OFF to build static libraries" OFF)
 
 # ----------------------------------------------------------------------------

@@ -1238,9 +1238,9 @@ void MarkerDetector::distortPoints(vector< cv::Point2f > in, vector< cv::Point2f
 
 void MarkerDetector::Params::save(cv::FileStorage &fs)const{
     fs<<"aruco-dictionary"<<dictionary;
-     fs<<"aruco-detectMode"<<toString(detectMode);
-     fs<<"aruco-cornerRefinementM"<<toString(cornerRefinementM);
-     fs<<"aruco-thresMethod"<<toString(thresMethod);
+    fs<<"aruco-detectMode"<<toString(detectMode);
+    fs<<"aruco-cornerRefinementM"<<toString(cornerRefinementM);
+    fs<<"aruco-thresMethod"<<toString(thresMethod);
     fs<<"aruco-maxThreads"<<maxThreads;
     fs<<"aruco-borderDistThres"<<borderDistThres;
     fs<<"aruco-lowResMarkerSize"<<lowResMarkerSize;
@@ -1256,9 +1256,8 @@ void MarkerDetector::Params::save(cv::FileStorage &fs)const{
     fs<<"aruco-ts"<<ts;
     fs<<"aruco-pyrfactor"<<pyrfactor;
     fs<<"aruco-error_correction_rate"<<error_correction_rate;
+}
 
-
- }
 void MarkerDetector::Params::load(cv::FileStorage &fs){
      attemtpRead("aruco-maxThreads",maxThreads,fs);
     attemtpRead("aruco-borderDistThres",borderDistThres,fs);
@@ -1376,6 +1375,7 @@ std::string MarkerDetector::Params::toString(DetectionMode dm){
     case DM_NORMAL:return "DM_NORMAL";
     case DM_VIDEO_FAST:return "DM_VIDEO_FAST";
     };
+    return "DM_NORMAL";
 }
 
 DetectionMode MarkerDetector::Params::getDetectionModeFromString(const std::string &str){
@@ -1392,6 +1392,7 @@ std::string MarkerDetector::Params::toString(CornerRefinementMethod dm){
     case CORNER_SUBPIX:return "CORNER_SUBPIX";
     case CORNER_NONE:return "CORNER_NONE";
     };
+    return "CORNER_SUBPIX";
 }
 CornerRefinementMethod MarkerDetector::Params::getCornerRefinementMethodFromString(const std::string &str){
     if ( str=="CORNER_LINES")return CORNER_LINES;
@@ -1404,6 +1405,7 @@ std::string MarkerDetector::Params::toString(MarkerDetector::ThresMethod dm){
     case THRES_ADAPTIVE:return "THRES_ADAPTIVE";
     case THRES_AUTO_FIXED:return "THRES_AUTO_FIXED";
      };
+    return "THRES_ADAPTIVE";
 }
 MarkerDetector::ThresMethod MarkerDetector::Params::getCornerThresMethodFromString(const std::string &str){
     if ( str=="THRES_ADAPTIVE")return THRES_ADAPTIVE;

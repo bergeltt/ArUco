@@ -51,6 +51,7 @@ cv::Mat __resize(const cv::Mat& in, int width)
     cv::resize(in, im2, cv::Size(width, static_cast<int>(in.size().height * yf)));
     return im2;
 }
+
 int main(int argc, char** argv)
 {
     try
@@ -126,6 +127,7 @@ int main(int argc, char** argv)
         cout << "Exception :" << ex.what() << endl;
     }
 }
+
 
 
 

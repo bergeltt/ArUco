@@ -129,7 +129,7 @@ public:
 
 
 
-        void setAutoSizeSpeedUp(bool v,float ts=0.25){autoSize=v;ts=ts;}
+        void setAutoSizeSpeedUp(bool v,float Ts=0.25){autoSize=v;ts=Ts;}
         bool getAutoSizeSpeedUp()const{return autoSize;}
 
 
@@ -151,7 +151,7 @@ public:
 
         //Detection mode
 
-        DetectionMode detectMode;
+        DetectionMode detectMode=DM_NORMAL;
 
         //maximum number of parallel threads
         int maxThreads=1;//-1 means all
@@ -169,7 +169,7 @@ public:
         int minSize_pix=-1;
         bool enclosedMarker=false;//special treatment for enclosed markers
         float error_correction_rate=0;
-        std::string dictionary;
+        std::string dictionary="ALL_DICTS";
         //threshold methods
         ThresMethod thresMethod=THRES_ADAPTIVE;
         int NAttemptsAutoThresFix=3;//number of times that tries a random threshold in case of THRES_AUTO_FIXED

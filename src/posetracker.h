@@ -140,6 +140,12 @@ namespace aruco
         {
             return _tvec;
         }
+        //prevents from big jumps. If the difference between current and previous positions are greater than the value indicated
+        //assumes no good tracking and the pose will be set as null
+        void setMaxTrackingDifference(float maxTranslation,float maxAngle){
+            _maxTranslation=maxTranslation;
+            _maxAngle=maxAngle;
+        }
 
     private:
         cv::Mat _rvec, _tvec;  // current poses
@@ -150,6 +156,7 @@ namespace aruco
         cv::Mat relocalization(const std::vector<Marker>& v_m);
         float aruco_minerrratio_valid;/*tau_e in paper*/
         std::map<uint32_t,cv::Mat> marker_m2g;//for each marker, the transform from the global ref system to the marker ref system
+        float _maxTranslation=-1,_maxAngle=-1;
     };
 };
 

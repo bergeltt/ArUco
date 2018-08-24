@@ -1,6 +1,8 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src)
 link_libraries(${PROJECT_NAME} ${REQUIRED_LIBRARIES} )
 
+add_executable(test_dummy test_dummy.cpp)
+target_link_libraries(test_dummy    aruco  opencv_calib3d)
 add_executable(create_artag_hrm_dict create_artag_hrm_dict.cpp)
 add_executable(create_aruco_dict create_aruco_dict.cpp )
 add_executable(mset2dict mset2dict.cpp highlyreliablemarkers.h highlyreliablemarkers.cpp)
@@ -20,8 +22,6 @@ target_link_libraries(compute_dist_distance     aruco)
 target_link_libraries(ippe_ratio    aruco  opencv_calib3d)
 add_executable(test_picoflann test_picoflann.cpp)
 target_link_libraries(test_picoflann    aruco  opencv_calib3d)
-add_executable(test_dummy test_dummy.cpp)
-target_link_libraries(test_dummy    aruco  opencv_calib3d)
 
 if (OpenCV_VERSION VERSION_GREATER "3.0.0")
     target_link_libraries(image2contourfile     opencv_imgcodecs)
