@@ -26,9 +26,7 @@ authors and should not be interpreted as representing official policies, either 
 or implied, of Rafael Muñoz Salinas.
 */
 
-#include "markermap.h"
 #include "calibrator.h"
-#include "levmarq.h"
 #include <opencv2/calib3d/calib3d.hpp>
 using namespace std;
 namespace aruco{
