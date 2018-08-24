@@ -75,7 +75,7 @@ int main(int argc, char** argv)
         {
             // You can also use ids 2000-2007 but it is not safe since there are a lot of false positives.
             cerr << "Usage: <makerid> outfile.(jpg|png|ppm|bmp)  [options] \n\t[-e use enclsing corners]\n\t[-bs <size>:bit size in pixels. 50 by "
-                    "default ] \n\t[-d <dictionary>: ARUCO default]"
+                    "default ] \n\t[-d <dictionary>: ARUCO_MIP_36h12 default]"
                  << endl;
             auto dict_names = aruco::Dictionary::getDicTypes();
             cerr << "\t\tDictionaries: ";
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
         bool enclosingCorners = cml["-e"];
         bool waterMark = true;
         // loads the desired dictionary
-        aruco::Dictionary dic = aruco::Dictionary::load(cml("-d", "ARUCO"));
+        aruco::Dictionary dic = aruco::Dictionary::load(cml("-d", "ARUCO_MIP_36h12"));
 
         cv::imwrite(argv[2], dic.getMarkerImage_id(stoi(argv[1]), pixSize, waterMark, enclosingCorners));
     }

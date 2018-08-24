@@ -323,7 +323,7 @@ Marker3DInfo::Marker3DInfo(int _id):id(_id){}
             ids.push_back(at(i).id);
     }
 
-    MarkerMap MarkerMap::convertToMeters(float markerSize_meters)
+    MarkerMap MarkerMap::convertToMeters(float markerSize_meters)const
     {
         if (!isExpressedInPixels())
             throw cv::Exception(-1, "The board is not expressed in pixels", "MarkerMap::convertToMeters", __FILE__,

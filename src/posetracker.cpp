@@ -31,7 +31,6 @@ or implied, of Rafael Muñoz Salinas.
 #include <set>
 #include "levmarq.h"
 #include <opencv2/calib3d.hpp>
-
 namespace aruco
 {
 
@@ -381,18 +380,17 @@ inline double getHubberMonoWeight(double SqErr,double Information){
             throw cv::Exception(9001, "Invalid camera parameters", "MarkerMapPoseTracker::setParams", __FILE__,
                                 __LINE__);
         if (_msconf.mInfoType == MarkerMap::PIX && markerSize <= 0)
-            throw cv::Exception(9001, "You should indicate the markersize sice the MarkerMap is in pixels",
+            throw cv::Exception(9001, "You should indicate the markersize since the MarkerMap is in pixels",
                                 "MarkerMapPoseTracker::setParams", __FILE__, __LINE__);
         if (_msconf.mInfoType == MarkerMap::NONE)
-            throw cv::Exception(9001, "Invlaid MarkerMap", "MarkerMapPoseTracker::setParams", __FILE__, __LINE__);
+            throw cv::Exception(9001, "Invalid MarkerMap", "MarkerMapPoseTracker::setParams", __FILE__, __LINE__);
         if (_msconf.mInfoType == MarkerMap::PIX)
-            _msconf = _msconf.convertToMeters(markerSize);
-
-        _isValid = true;
+            _msconf =  msconf.convertToMeters(markerSize);
+         _isValid = true;
 
         // create a map for fast access to elements
         _map_mm.clear();
-        for (auto m : msconf)
+        for (auto m : _msconf)
             _map_mm.insert(std::make_pair(m.id, m));
 
         //now, compute the marker_m2g map

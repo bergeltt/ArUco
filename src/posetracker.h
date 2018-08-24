@@ -77,7 +77,7 @@ namespace aruco
          * @return true if the pose is estimated and false otherwise. If not estimated, the parameters m.Rvec and m.Tvec
          * and not set.
          */
-        bool estimatePose(Marker& m, const CameraParameters& cam_params, float markerSize, float minErrorRatio = 4 /*tau_e in paper*/);
+        bool estimatePose(Marker& m, const CameraParameters& cam_params, float markerSize, float minErrorRatio = 10 /*tau_e in paper*/);
 
         // returns the 4x4 transform matrix. Returns an empty matrix if last call to estimatePose returned false
         cv::Mat getRTMatrix() const;

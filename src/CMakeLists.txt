@@ -32,7 +32,7 @@ set(headers
 )
 
 add_library(aruco ${sources} ${headers})
-IF(NOT ARUCO_ANDROID)
+IF(NOT COMPILE_IN_ANDROID)
 
 set_target_properties(aruco PROPERTIES          # create *nix style library versions + symbolic links
     DEFINE_SYMBOL ARUCO_DSO_EXPORTS

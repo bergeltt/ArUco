@@ -69,6 +69,7 @@ int main(int argc, char** argv)
         cv::Mat InImage;
         // Open input and read image
         VideoCapture vreader(argv[1]);
+//        VideoCapture  vreader(1);
         if (vreader.isOpened())
             vreader >> InImage;
         else
@@ -76,6 +77,7 @@ int main(int argc, char** argv)
             cerr << "Could not open input" << endl;
             return -1;
         }
+        cout<<"JJJJ"<<InImage.size()<<endl;
         // read camera parameters if specifed
         CamParam.readFromXMLFile(argv[2]);
         CamParam.resize(InImage.size());

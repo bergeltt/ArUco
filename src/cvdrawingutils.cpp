@@ -67,7 +67,7 @@ namespace aruco
      ****/
     void CvDrawingUtils::draw3dAxis(cv::Mat& Image, Marker& m, const CameraParameters& CP)
     {
-        float size = m.ssize * 3;
+        float size = m.ssize *0.6;
         Mat objectPoints(4, 3, CV_32FC1);
         objectPoints.at<float>(0, 0) = 0;
         objectPoints.at<float>(0, 1) = 0;

@@ -55,6 +55,8 @@ or implied, of Rafael Muñoz Salinas.
         cv::Mat Rvec, Tvec;
         //additional info about the dictionary
         std::string dict_info;
+        //points of the contour
+        vector<cv::Point> contourPoints;
 
         /**
          */

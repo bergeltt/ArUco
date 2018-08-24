@@ -54,6 +54,9 @@ Dictionary Dictionary::loadFromFile(std::string path) {
       string a,b;
       sstr>>a>>b;return b;
     };
+    auto _stoi=[](string str){
+		int i;sscanf(str.c_str(),"%d",&i);return i;
+	};
 
     ifstream file(path);
     if (!file)throw std::runtime_error("Dictionary::loadFromFile could not open file");
@@ -64,7 +67,7 @@ Dictionary Dictionary::loadFromFile(std::string path) {
     d._name=parse(line);
     std::getline(file,line);
     if (line.find("nbits")==std::string::npos) throw std::runtime_error("Dictionary::loadFromFile 'nbits' not found");
-    d._nbits=stoi(parse(line));
+    d._nbits=_stoi(parse(line));
     if (d._nbits>64)throw std::runtime_error("Dictionary::loadFromFile no more than 64 bits allowed ");
 
 

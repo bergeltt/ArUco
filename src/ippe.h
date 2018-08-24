@@ -50,6 +50,8 @@ namespace aruco
     // returns the two solutions
     std::vector<cv::Mat> solvePnP(const std::vector<cv::Point3f>& objPoints, const std::vector<cv::Point2f>& imgPoints,
                                   cv::InputArray cameraMatrix, cv::InputArray distCoeffs);
+    void solvePnP(const std::vector<cv::Point3f>& objPoints, const std::vector<cv::Point2f>& imgPoints,
+                                  cv::InputArray cameraMatrix, cv::InputArray distCoeffs,cv::Mat &rvec,cv::Mat &tvec);
     ARUCO_EXPORT  std::vector<std::pair<cv::Mat,double> > solvePnP_(float size,const  std::vector<cv::Point2f> &imgPoints, cv::InputArray cameraMatrix, cv::InputArray distCoeffs);
 
      std::vector<std::pair<cv::Mat, double>> solvePnP_(const std::vector<cv::Point3f>& objPoints,

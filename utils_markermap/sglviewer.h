@@ -50,9 +50,9 @@ or implied, of Rafael Muñoz Salinas.
      float _subw_nsize=0.3;
      bool showingHelp=false;
      cv::Mat _cameraImage;
-     bool showNumbers=false;
+     bool showNumbers=true;
      aruco::MarkerMap  _mmap;
-     float cameraSize=0.15;
+     float cameraSize=0.1;
      std::map<uint32_t,std::vector<sgl::Point3> > marker_points;
      bool canLeave=true;
      cv::Mat _resizedInImage;
@@ -67,7 +67,7 @@ or implied, of Rafael Muñoz Salinas.
 
 
 
-    void setParams(float f,int width,int height,std::string wname){
+    void setParams(float f,int width,int height,std::string wname,float CameraSize=0.1){
         _imshow.create(height,width,CV_8UC3);
         _f=f;
         _w=width;_h=height;
@@ -76,6 +76,7 @@ or implied, of Rafael Muñoz Salinas.
         cv::resizeWindow(_wname,width,height);
         cv::setMouseCallback(_wname, &sgl_OpenCV_Viewer::mouseCallBackFunc , this);
 
+        cameraSize=CameraSize;
         sgl::Matrix44 cam;
         cam.translate({0,4,0});
         cam.rotateX(3.1415/2.);

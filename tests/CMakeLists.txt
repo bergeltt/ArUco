@@ -18,6 +18,8 @@ target_link_libraries(extract_chilitag_dict     aruco opencv_highgui )
 target_link_libraries(compute_dist_distance     aruco)
 #target_link_libraries(speed_test aruco opencv_calib3d)
 target_link_libraries(ippe_ratio    aruco  opencv_calib3d)
+add_executable(test_picoflann test_picoflann.cpp)
+target_link_libraries(test_picoflann    aruco  opencv_calib3d)
 add_executable(test_dummy test_dummy.cpp)
 target_link_libraries(test_dummy    aruco  opencv_calib3d)
 

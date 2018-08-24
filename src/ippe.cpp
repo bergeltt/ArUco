@@ -104,6 +104,17 @@ vector<cv::Mat> solvePnP(const vector<cv::Point3f>& objPoints, const std::vector
                                    Tvec2, reprojErr2);
     return {getRTMatrix(Rvec, Tvec, CV_32F), getRTMatrix(Rvec2, Tvec2, CV_32F)};
 }
+
+void solvePnP(const vector<cv::Point3f>& objPoints, const std::vector<cv::Point2f>& imgPoints,
+                               cv::InputArray cameraMatrix, cv::InputArray distCoeffs,cv::Mat &rvec,cv::Mat &tvec)
+{
+    float markerLength = static_cast<float>(cv::norm(objPoints[1] - objPoints[0]));
+    float reprojErr1, reprojErr2;
+    cv::Mat Rvec2, Tvec2;
+
+    solvePoseOfCentredSquare(markerLength, imgPoints, cameraMatrix, distCoeffs, rvec, tvec, reprojErr1, Rvec2,
+                                   Tvec2, reprojErr2);
+}
 std::vector<std::pair<cv::Mat,double> > solvePnP_(float size,const  std::vector<cv::Point2f> &imgPoints, cv::InputArray cameraMatrix, cv::InputArray distCoeffs){
     cv::Mat   Rvec, Tvec, Rvec2,Tvec2;
      float reprojErr1, reprojErr2;

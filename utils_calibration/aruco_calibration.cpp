@@ -103,7 +103,10 @@ int main(int argc, char** argv)
             cerr << "Could not open video" << endl;
             return -1;
         }
-
+        TheVideoCapturer.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );
+        TheVideoCapturer.set(CV_CAP_PROP_AUTOFOCUS,0);
+        TheVideoCapturer.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+        TheVideoCapturer.set(CV_CAP_PROP_FRAME_HEIGHT,720);
         bool saveImages=cml["-save"];
         // read first image to get the dimensions
         TheVideoCapturer >> TheInputImage;
@@ -114,7 +117,7 @@ int main(int argc, char** argv)
 
         // set specific parameters for this configuration
         TheMarkerDetector.setDictionary( "ARUCO_MIP_36h12");
-        TheMarkerDetector.setDetectionMode(aruco::DM_VIDEO_FAST,0.05);
+        TheMarkerDetector.setDetectionMode(aruco::DM_NORMAL);
          cv::namedWindow("in", cv::WINDOW_NORMAL);
         cv::resizeWindow("in",800,600);
 

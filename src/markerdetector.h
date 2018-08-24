@@ -43,11 +43,25 @@ or implied, of Rafael Muñoz Salinas.
 namespace aruco
 {
 
-    /**
-     * @brief The DetectionMode enum defines the different possibilities for detection
-     *
-     */
-    enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
+/**
+     * @brief The DetectionMode enum defines the different possibilities for detection.
+     * Specifies the detection mode. We have preset three types of detection modes. These are
+         * ways to configure the internal parameters for the most typical situations. The modes are:
+         * - DM_NORMAL: In this mode, the full resolution image is employed for detection and slow threshold method. Use this method when
+         * you process individual images that are not part of a video sequence and you are not interested in speed.
+         *
+         * - DM_FAST: In this mode, there are two main improvements. First, image is threshold using a faster method using a global threshold.
+         * Also, the full resolution image is employed for detection, but, you could speed up detection even more by indicating a minimum size of the
+         * markers you will accept. This is set by the variable minMarkerSize which shoud be in range [0,1]. When it is 0, means that you do not set
+         * a limit in the size of the accepted markers. However, if you set 0.1, it means that markers smaller than 10% of the total image area, will not
+         * be detected. Then, the detection can be accelated up to orders of magnitude compared to the normal mode.
+         *
+         * - DM_VIDEO_FAST: This is similar to DM_FAST, but specially adapted to video processing. In that case, we assume that the observed markers
+         * when you call to detect() have a size similar to the ones observed in the previous frame. Then, the processing can be speeded up by employing smaller versions
+         * of the image automatically calculated.
+         *
+         */
+enum DetectionMode: int{DM_NORMAL=0,DM_FAST=1,DM_VIDEO_FAST=2};
 
 
 
@@ -66,6 +80,9 @@ namespace aruco
         struct Params
         {
 
+            //Detection mode
+
+             DetectionMode detectMode;
 
             //maximum number of parallel threads
             int maxThreads=1;//-1 means all
@@ -84,7 +101,7 @@ namespace aruco
             bool enclosedMarker=false;//special treatment for enclosed markers
 
 
-            void setThresholdMethod(ThresMethod  method,int thresHold=-1,int wsize=15,int wsize_range=0 ){
+            void setThresholdMethod(ThresMethod  method,int thresHold=-1,int wsize=-1,int wsize_range=0 ){
                 _AdaptiveThresWindowSize=wsize;
                 _thresMethod=method;
                 if (thresHold==-1){
@@ -102,7 +119,7 @@ namespace aruco
 
 
             // Threshold parameters
-            int _AdaptiveThresWindowSize=15, _ThresHold=10, _AdaptiveThresWindowSize_range=0;
+            int _AdaptiveThresWindowSize=-1, _ThresHold=10, _AdaptiveThresWindowSize_range=0;
             // size of the image passedta to the MarkerLabeler
             int _markerWarpPixSize=5;//tau_c in paper
 
@@ -118,7 +135,22 @@ namespace aruco
             bool getAutoSizeSpeedUp()const{return _autoSize;}
 
             float pyrfactor=2;
-
+            void  setDetectionMode( DetectionMode dm,float minMarkerSize){
+                detectMode=dm;
+                minSize=minMarkerSize;
+                if(detectMode==DM_NORMAL){
+                    setAutoSizeSpeedUp(false);
+                    setThresholdMethod(THRES_ADAPTIVE);
+                }
+                else if (detectMode==DM_FAST ){
+                    setAutoSizeSpeedUp(false);
+                    setThresholdMethod(THRES_AUTO_FIXED);
+                }
+                else if(detectMode==DM_VIDEO_FAST){
+                    setThresholdMethod(THRES_AUTO_FIXED);
+                    setAutoSizeSpeedUp(true,0.3);
+                }
+            }
         };
 
         /**
@@ -158,6 +190,9 @@ namespace aruco
         /**returns current detection mode
          */
         DetectionMode getDetectionMode( );
+        /**Indicates if the markers are enclosed
+         */
+        void detectEnclosedMarkers(bool v);
         /**Detects the markers in the image passed
          *
          * If you provide information about the camera parameters and the size of the marker, then, the extrinsics of
@@ -252,6 +287,9 @@ namespace aruco
          * Returns a reference to the internal image thresholded. Since there can be generated many of them, specify which
          */
         cv::Mat getThresholdedImage(uint32_t idx=0);
+        /**returns the number of thresholed images available
+         */
+        size_t getNhresholdedImages()const{return _thres_Images.size();}
 
 
 
@@ -329,7 +367,7 @@ namespace aruco
 
         // operating params
         Params _params;
-        DetectionMode _detectMode=DM_NORMAL;
+
         // Images
         cv::Mat grey, thres;
         // pointer to the function that analizes a rectangular region so as to detect its internal marker
@@ -411,7 +449,7 @@ namespace aruco
 
 
 
-        enum ThreadTasks {THRESHOLD_TASK,ERODE_TASK,EXIT_TASK};
+        enum ThreadTasks {THRESHOLD_TASK,ENCLOSE_TASK,EXIT_TASK};
             struct ThresAndDetectRectTASK{
                 int inIdx,outIdx;
                 int param1,param2;
@@ -457,6 +495,15 @@ namespace aruco
                 std::condition_variable cond_;
             };
             Queue<ThresAndDetectRectTASK> _tasks;
+            void refineCornerWithContourLines( aruco::Marker &marker,cv::Mat cameraMatrix=cv::Mat(),cv::Mat distCoef=cv::Mat());
+
+            inline float pointSqdist(cv::Point &p,cv::Point2f&p2){
+                float dx=p.x-p2.x;
+                float dy=p.y-p2.y;
+                return dx*dx+dy*dy;
+            }
+
+            float _tooNearDistance=-1;//pixel distance between nearr rectangle. Computed automatically based on the params
 
     };
 };

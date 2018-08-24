@@ -44,6 +44,9 @@ or implied, of Rafael Muñoz Salinas.
 
     cv::Ptr<MarkerLabeler> MarkerLabeler::create(std::string detector, std::string params)
     {
+		 auto _stof=[](std::string str){
+			float f;sscanf(str.c_str(),"%f",&f);return f;
+		};
         (void)params;
         if (detector == "SVM")
         {
@@ -65,7 +68,7 @@ or implied, of Rafael Muñoz Salinas.
                 Dictionary dict = Dictionary::load(detector);
                 // try with one from file
                 DictionaryBased* db = new DictionaryBased();
-                db->setParams(dict, std::stof(params));
+                db->setParams(dict, _stof(params));
                 return db;
          }
 

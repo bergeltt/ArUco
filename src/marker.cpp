@@ -37,6 +37,7 @@ or implied, of Rafael Muñoz Salinas.
 #include <cstdio>
 #include <math.h>
 #include "cameraparameters.h"
+#include "ippe.h"
 
 namespace aruco
 {
@@ -98,6 +99,7 @@ namespace aruco
         for(size_t i=0;i<size();i++)
             m.at(i)=at(i);
         m.dict_info=dict_info;
+        m.contourPoints=contourPoints;
 
     }
     /**compares ids
@@ -259,6 +261,11 @@ namespace aruco
 
     void Marker::draw(cv::Mat& in,  cv::Scalar color, int lineWidth, bool writeId, bool writeInfo) const
     {
+		
+		auto _to_string=[](int i){
+			std::stringstream str;str<<i;return str.str();
+			};
+		
         if (size() != 4)
             return;
         if (lineWidth == -1)  // auto
@@ -273,6 +280,8 @@ namespace aruco
 //        cv::rectangle(in, (*this)[1] - p2, (*this)[1] + p2, cv::Scalar(0, 255, 0, 255), lineWidth, CV_AA);
 //        cv::rectangle(in, (*this)[2] - p2, (*this)[2] + p2, cv::Scalar(255, 0, 0, 255), lineWidth, CV_AA);
 
+
+
         if (writeId)
         {
             // determine the centroid
@@ -286,7 +295,7 @@ namespace aruco
             cent.y /= 4;
             std::string str;
             if(writeInfo) str+= dict_info +":";
-            if(writeId)str+=std::to_string(id);
+            if(writeId)str+=_to_string(id);
             cv::putText(in,str, cent,  cv::FONT_HERSHEY_SIMPLEX, std::max(0.5f, float(lineWidth) * 0.3f),
                         cv::Scalar(255 - color[0], 255 - color[1], 255 - color[2], 255), std::max(lineWidth, 2));
         }
@@ -323,8 +332,10 @@ namespace aruco
 
         vector<cv::Point3f> objpoints = get3DPoints(markerSizeMeters);
 
+
         cv::Mat raux, taux;
-        cv::solvePnP(objpoints, *this, camMatrix, distCoeff, raux, taux);
+//        cv::solvePnP(objpoints, *this, camMatrix, distCoeff, raux, taux);
+        solvePnP(objpoints, *this,camMatrix, distCoeff,raux,taux);
         raux.convertTo(Rvec, CV_32F);
         taux.convertTo(Tvec, CV_32F);
         // rotate the X axis so that Y is perpendicular to the marker plane
@@ -332,6 +343,16 @@ namespace aruco
             rotateXAxis(Rvec);
         ssize = markerSizeMeters;
         // cout<<(*this)<<endl;
+
+//        auto setPrecision=[](double f, double prec){
+//            int x=roundf(f*prec);
+//            return  double(x)/prec;
+//        };
+//        for(int i=0;i<3;i++){
+//            Rvec.ptr<float>(0)[i]=setPrecision(Rvec.ptr<float>(0)[i],100);
+//            Tvec.ptr<float>(0)[i]=setPrecision(Tvec.ptr<float>(0)[i],1000);
+//        }
+
     }
 
     std::vector<cv::Point3f> Marker::get3DPoints(float msize)
@@ -422,6 +443,9 @@ namespace aruco
         uint32_t s=dict_info.size();
         str.write((char*)&s, sizeof(s));
         str.write((char*)&dict_info[0], dict_info.size());
+        s=contourPoints.size();
+        str.write((char*)&s, sizeof(s));
+        str.write((char*)&contourPoints[0], contourPoints.size()*sizeof(contourPoints[0]));
 
     }
     // reads from a binary stream
@@ -443,6 +467,9 @@ namespace aruco
         str.read((char*)&s, sizeof(s));
          dict_info.resize(s);
         str.read((char*)&dict_info[0], dict_info.size());
+        str.read((char*)&s, sizeof(s));
+        contourPoints.resize(s);
+        str.read((char*)&contourPoints[0], contourPoints.size()*sizeof(contourPoints[0]));
     }
 
 

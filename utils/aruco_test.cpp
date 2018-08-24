@@ -47,7 +47,7 @@ Mat TheInputImage,TheInputImageGrey, TheInputImageCopy;
 CameraParameters TheCameraParameters;
 void cvTackBarEvents(int pos, void*);
 string dictionaryString;
-int iDetectMode=0,iMinMarkerSize=0,iCorrectionRate=0,iShowAllCandidates=0;
+int iDetectMode=0,iMinMarkerSize=0,iCorrectionRate=0,iShowAllCandidates=0,iEnclosed=0;
 
 int waitTime = 0;
 bool showMennu=false,bPrintHelp=false,isVideo=false;
@@ -73,6 +73,7 @@ cv::Mat resize(const cv::Mat& in, int width)
 void setParamsFromGlobalVariables(aruco::MarkerDetector &md){
 
     md.setDetectionMode((DetectionMode)iDetectMode,float(iMinMarkerSize)/1000.);
+    md.detectEnclosedMarkers(iEnclosed);
     md.setDictionary(dictionaryString,float(iCorrectionRate)/10. );  // sets the dictionary to be employed (ARUCO,APRILTAGS,ARTOOLKIT,etc)
 }
 
@@ -80,8 +81,11 @@ void createMenu(){
    cv::createTrackbar("DetectMode", "in", &iDetectMode, 2, cvTackBarEvents);
    cv::createTrackbar("MinMarkerSize", "in", &iMinMarkerSize, 1000, cvTackBarEvents);
    cv::createTrackbar("ErrorRate", "in", &iCorrectionRate, 10, cvTackBarEvents);
+   cv::createTrackbar("Enclosed", "in", &iEnclosed, 1, cvTackBarEvents);
    cv::createTrackbar("ShowAll", "in", &iShowAllCandidates, 1, cvTackBarEvents);
- }
+
+
+}
 
 void putText(cv::Mat &im,string text,cv::Point p,float size){
     float fact=float(im.cols)/float(640);
@@ -112,6 +116,15 @@ void printInfo(cv::Mat &im){
     }
 }
 
+cv::Mat resizeImage(cv::Mat &in,float resizeFactor){
+    if (fabs(1-resizeFactor)<1e-3 )return in;
+    float nc=float(in.cols)*resizeFactor;
+    float nr=float(in.rows)*resizeFactor;
+    cv::Mat imres;
+    cv::resize(in,imres,cv::Size(nc,nr));
+    cout<<"Imagesize="<<imres.size()<<endl;
+    return imres;
+}
 /************************************
  *
  *
@@ -146,6 +159,8 @@ int main(int argc, char** argv)
             TheCameraParameters.readFromXMLFile(cml("-c"));
 
         float TheMarkerSize = std::stof(cml("-s", "-1"));
+        //resize factor
+        float resizeFactor=stof(cml("-rf","1"));
 
         ///////////  OPEN VIDEO
         // read from camera or from  file
@@ -172,6 +187,7 @@ int main(int argc, char** argv)
         if (!TheVideoCapturer.isOpened())
             throw std::runtime_error("Could not open video");
 
+
         ///// CONFIGURE DATA
         // read first image to get the dimensions
         TheVideoCapturer >> TheInputImage;
@@ -196,11 +212,15 @@ int main(int argc, char** argv)
         int index = 0,indexSave=0;
         // capture until press ESC or until the end of the video
 
+
+
+
          do
         {
 
              TheVideoCapturer.retrieve(TheInputImage);
 
+             TheInputImage=resizeImage(TheInputImage,resizeFactor);
               // copy image
             Fps.start();
             TheMarkers = MDetector.detect(TheInputImage, TheCameraParameters, TheMarkerSize);
@@ -244,12 +264,13 @@ int main(int argc, char** argv)
                 string number=std::to_string(indexSave++);
                 while(number.size()!=3)number="0"+number;
                 string imname="arucoimage"+number+".png";
-//                cv::imwrite(imname,TheInputImage);
                 cv::imwrite(imname,TheInputImageCopy);
                 cout<<"saved "<<imname<<endl;
                 imname="orgimage"+number+".png";
                 cv::imwrite(imname,TheInputImage);
                 cout<<"saved "<<imname<<endl;
+                imname="thresimage"+number+".png";
+                cv::imwrite(imname,MDetector.getThresholdedImage());
 
             }
              if (key=='m') {

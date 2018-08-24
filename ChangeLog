@@ -1,3 +1,8 @@
+Version 3.0.5
+	- Moved all parameters used in MarkerDetector to MarkerDetector::Params so as to allow serialization 
+    - Initial support for enclosed markers
+    - Automatic estimation of the adaptive threshold window size as a function of the image dimensions
+    - Corrected bug in MarkerMapPoseTracker::setParams with the maps expressed in pixels
 Version 3.0.4
   - Set ALL_DICTS as default behaviour internally in MarkerDetector
   - Corrected bug in some linux machines with reading directory

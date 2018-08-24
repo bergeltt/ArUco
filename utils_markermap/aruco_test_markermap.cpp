@@ -35,7 +35,7 @@ or implied, of Rafael Muñoz Salinas.
 #include <sstream>
 #include <string>
 #include <stdexcept>
-
+#include <Eigen/Geometry>
 #include "sglviewer.h"
 using namespace cv;
 using namespace aruco;
@@ -121,8 +121,7 @@ int main(int argc, char** argv)
         TheCameraParameters.resize(TheInputImage.size());
         // prepare the detector
         TheMarkerDetector.setDictionary( TheMarkerMapConfig.getDictionary());
-//        TheMarkerDetector.setDetectionMode(aruco::DM_VIDEO_FAST); //use this mode if you know is better
-        // prepare the pose tracker if possible
+         // prepare the pose tracker if possible
         // if the camera parameers are avaiable, and the markerset can be expressed in meters, then go
 
         if (TheMarkerMapConfig.isExpressedInPixels() && TheMarkerSize > 0)
@@ -136,7 +135,7 @@ int main(int argc, char** argv)
         // Create gui
 
 
-        Viewer.setParams(1.5,1280,960,"map_viewer");
+        Viewer.setParams(1.5,1280,960,"map_viewer",TheMarkerSize);
         char key = 0;
         int index = 0;
         // capture until press ESC or until the end of the video
@@ -152,7 +151,10 @@ int main(int argc, char** argv)
             vector<aruco::Marker> detected_markers = TheMarkerDetector.detect(TheInputImage);
             // estimate 3d camera pose if possible
             if (TheMSPoseTracker.isValid())
-                if (TheMSPoseTracker.estimatePose(detected_markers)) frame_pose_map.insert(make_pair(index, TheMSPoseTracker.getRTMatrix()));
+                if (TheMSPoseTracker.estimatePose(detected_markers)) {
+                    frame_pose_map.insert(make_pair(index, TheMSPoseTracker.getRTMatrix()));
+                    cout<<TheMSPoseTracker.getRvec()<<" "<< TheMSPoseTracker.getTvec()<<endl;
+                }
             if (index>1) avrgTimer.end();
             cout<<"Average computing time "<<avrgTimer.getAverage()<<" ms"<<endl;
             // print the markers detected that belongs to the markerset
@@ -182,96 +184,35 @@ int main(int argc, char** argv)
 
 
 
-void getQuaternionAndTranslationfromMatrix44(const cv::Mat& M_in, float& qx, float& qy, float& qz, float& qw, float& tx,
-                                             float& ty, float& tz)
-{
-
-    auto SIGN=[](float x)
-    {
-        return (x >= 0.0f) ? +1.0f : -1.0f;
-    };
-
-    auto NORM=[](double a, double b, double c, double d)
-    {
-        return sqrt(a * a + b * b + c * c + d * d);
-    };
-    // get the 3d part of matrix and get quaternion
-    assert(M_in.total() == 16);
+void  getQuaternionAndTranslationfromMatrix44(const cv::Mat &M_in ,double &qx,double &qy,double &qz,double &qw,double &tx,double &ty,double &tz){
+    //get the 3d part of matrix and get quaternion
+    assert(M_in.total()==16);
     cv::Mat M;
-    M_in.convertTo(M, CV_32F);
-    // use now eigen
-    float r11 = M.at<float>(0, 0);
-    float r12 = M.at<float>(0, 1);
-    float r13 = M.at<float>(0, 2);
-    float r21 = M.at<float>(1, 0);
-    float r22 = M.at<float>(1, 1);
-    float r23 = M.at<float>(1, 2);
-    float r31 = M.at<float>(2, 0);
-    float r32 = M.at<float>(2, 1);
-    float r33 = M.at<float>(2, 2);
+    M_in.convertTo(M,CV_64F);
+    cv::Mat r33=cv::Mat ( M,cv::Rect ( 0,0,3,3 ) );
+    //use now eigen
+    Eigen::Matrix3f e_r33;
+    for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
+            e_r33(i,j)=M.at<double>(i,j);
 
-    double q0 = (r11 + r22 + r33 + 1.0f) / 4.0f;
-    double q1 = (r11 - r22 - r33 + 1.0f) / 4.0f;
-    double q2 = (-r11 + r22 - r33 + 1.0f) / 4.0f;
-    double q3 = (-r11 - r22 + r33 + 1.0f) / 4.0f;
-    if (q0 < 0.0f)
-        q0 = 0.0f;
-    if (q1 < 0.0f)
-        q1 = 0.0f;
-    if (q2 < 0.0f)
-        q2 = 0.0f;
-    if (q3 < 0.0f)
-        q3 = 0.0f;
-    q0 = sqrt(q0);
-    q1 = sqrt(q1);
-    q2 = sqrt(q2);
-    q3 = sqrt(q3);
-    if (q0 >= q1 && q0 >= q2 && q0 >= q3)
-    {
-        q0 *= +1.0f;
-        q1 *= SIGN(r32 - r23);
-        q2 *= SIGN(r13 - r31);
-        q3 *= SIGN(r21 - r12);
-    }
-    else if (q1 >= q0 && q1 >= q2 && q1 >= q3)
-    {
-        q0 *= SIGN(r32 - r23);
-        q1 *= +1.0f;
-        q2 *= SIGN(r21 + r12);
-        q3 *= SIGN(r13 + r31);
-    }
-    else if (q2 >= q0 && q2 >= q1 && q2 >= q3)
-    {
-        q0 *= SIGN(r13 - r31);
-        q1 *= SIGN(r21 + r12);
-        q2 *= +1.0f;
-        q3 *= SIGN(r32 + r23);
-    }
-    else if (q3 >= q0 && q3 >= q1 && q3 >= q2)
-    {
-        q0 *= SIGN(r21 - r12);
-        q1 *= SIGN(r31 + r13);
-        q2 *= SIGN(r32 + r23);
-        q3 *= +1.0f;
-    }
-    else
-    {
-        cerr << "Coding error" << endl;
-    }
-    double r = NORM(q0, q1, q2, q3);
-    qx = static_cast<float>(q0 / r);
-    qy = static_cast<float>(q1 / r);
-    qz = static_cast<float>(q2 / r);
-    qw = static_cast<float>(q3 / r);
+    //now, move to a angle axis
+    Eigen::Quaternionf q(e_r33);
+    qx=q.x();
+    qy=q.y();
+    qz=q.z();
+    qw=q.w();
 
-    tx = M.at<float>(0, 3);
-    ty = M.at<float>(1, 3);
-    tz = M.at<float>(2, 3);
+
+    tx=M.at<double>(0,3);
+    ty=M.at<double>(1,3);
+    tz=M.at<double>(2,3);
 }
+
 void savePosesToFile(string filename, const std::map<int, cv::Mat>& fmp)
 {
     std::ofstream file(filename);
-    float qx, qy, qz, qw, tx, ty, tz;
+    double qx, qy, qz, qw, tx, ty, tz;
     for (auto frame : fmp)
     {
         if (!frame.second.empty())

@@ -33,6 +33,7 @@ or implied, of Rafael Muñoz Salinas.
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <fstream>
 #include <iostream>
 #include <valarray>
@@ -98,29 +99,17 @@ MarkerDetector::~MarkerDetector()
      *
      ************************************/
 void MarkerDetector::setDetectionMode( DetectionMode dm,float minMarkerSize){
-    _detectMode=dm;
-    _params.minSize=minMarkerSize;
-    if(_detectMode==DM_NORMAL){
-        _params.setAutoSizeSpeedUp(false);
-
-//        _params.setThresholdMethod(THRES_AUTO_FIXED);
-//        _params.NAttemptsAutoThresFix=30;
-        _params.setThresholdMethod(THRES_ADAPTIVE);
-    }
-    else if (_detectMode==DM_FAST ){
-        _params.setAutoSizeSpeedUp(false);
-        _params.setThresholdMethod(THRES_AUTO_FIXED);
-    }
-    else if(_detectMode==DM_VIDEO_FAST){
-        _params.setThresholdMethod(THRES_AUTO_FIXED);
-        _params.setAutoSizeSpeedUp(true,0.3);
-    }
-
+    _params.setDetectionMode(dm,minMarkerSize);
 }
 
 DetectionMode MarkerDetector::getDetectionMode( ){
-return _detectMode;
+return _params.detectMode;
 }
+
+void MarkerDetector::detectEnclosedMarkers(bool v){
+_params.enclosedMarker=v;
+}
+
 
 /************************************
      *
@@ -203,26 +192,34 @@ void MarkerDetector::buildPyramid(vector<cv::Mat> &ImagePyramid,const cv::Mat &g
      *
      */
 
-vector< MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetectRectangles(const cv::Mat  & input, int thres_param1,int thres_param2,bool erode,cv::Mat &auxThresImage){
+vector< MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetectRectangles(const cv::Mat  & input, int thres_param1,int thres_param2,bool enclosed,cv::Mat &auxThresImage){
      // ensure that _thresParam1%2==1
-    ScopedTimerEvents tev("hafc "+std::to_string(thres_param1));
+    ScopedTimerEvents tev("hafc ");
     if (thres_param1 < 3) thres_param1 = 3;
     else if (((int)thres_param1) % 2 != 1) thres_param1 = (int)(thres_param1 + 1);
 
+    int enclosedOffset=-1;
     cv::Mat auxImage;
-    if ( !erode) auxImage=auxThresImage;
+    //if ( !erode)
+        auxImage=auxThresImage;
     if (_params._thresMethod==THRES_AUTO_FIXED){
             cv::threshold(input, auxImage, static_cast<int>(thres_param2),255,THRESH_BINARY_INV);
+            if(enclosed){
+               cv::Mat aux1;
+               enclosedOffset=int(std::max(3.0, 3./1920. * float(auxImage.cols) ));
+               if (enclosedOffset%2==0) enclosedOffset++;
+               cv::erode(auxImage,aux1, getStructuringElement( MORPH_CROSS,cv::Size( enclosedOffset, enclosedOffset ),cv::Point( enclosedOffset/2,enclosedOffset/2 ) ));
+               cv::bitwise_xor(aux1,auxImage,auxImage);
+               tev.add("erode");
+            }
     }
-    else cv::adaptiveThreshold(input, auxImage, 255., ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, static_cast<int>(thres_param1), static_cast<int>(thres_param2));
+    else {
+        cv::adaptiveThreshold(input, auxImage, 255., ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, static_cast<int>(thres_param1), static_cast<int>(thres_param2));
+        enclosedOffset=thres_param1;
+     }
     tev.add("thres");
 
-
-     if (erode){
-        cv::erode(auxImage,auxThresImage, getStructuringElement( MORPH_CROSS,cv::Size( 3, 3 ),cv::Point( 1,1 ) ));
-         tev.add("erode");
-    }
-     //
+//     //
 
     vector<MarkerCandidate> MarkerCanditates;
     // calcualte the min_max contour sizes
@@ -230,7 +227,7 @@ vector< MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetectRecta
     //if image is eroded, minSize must be adapted
      std::vector<cv::Vec4i> hierarchy;
     std::vector<std::vector<cv::Point>> contours;
-     cv::findContours(auxThresImage, contours, cv::noArray(), CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+      cv::findContours(auxThresImage, contours, cv::noArray(), CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
        tev.add("find-cont");
      vector<Point> approxCurve;
 //#define _aruco_debug_detectrectangles
@@ -269,14 +266,15 @@ vector< MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetectRecta
                     for (int j = 0; j < 4; j++)
                         MarkerCanditates.back().push_back( Point2f(static_cast<float>(approxCurve[j].x),static_cast<float>(approxCurve[j].y)));
                     //now, if it is eroded, must enalrge 1 bit the corners to go to the real location
-                    if (erode )  {
-                        //for each opposite pair, take the line joining them and move one pixel apart
-                        //ideally, Bresenham's algorithm should be used
-                        enlargeMarkerCandidate(MarkerCanditates.back(),1);
+                    //for each opposite pair, take the line joining them and move one pixel apart
+                    //ideally, Bresenham's algorithm should be used
+                    if (enclosed)  {
+                            enlargeMarkerCandidate(MarkerCanditates.back(),float(enclosedOffset)/2.);
                     }
 #ifdef _aruco_debug_detectrectangles
                     MarkerCanditates.back().draw(simage,Scalar(255, 255, 0),1,false);
 #endif
+                    MarkerCanditates.back().contour=contours[i];
 
             }
 
@@ -293,12 +291,12 @@ void MarkerDetector::thresholdAndDetectRectangles_thread( ){
     while(true){
         //stringstream sstr;sstr<<"thread-"<<std::this_thread::get_id()<<" "<<  std::chrono::high_resolution_clock::now().time_since_epoch().count();
 //        ScopedTimerEvents tev(sstr.str());
-        bool erode=false;
+        bool enclosed=false;
         auto tad=_tasks.pop();
 //        tev.add("pop");
         if (tad.task==EXIT_TASK) return;
-        else   if (tad.task==ERODE_TASK) erode=true;
-        _vcandidates[tad.outIdx]=thresholdAndDetectRectangles(_thres_Images[tad.inIdx],tad.param1,tad.param2,erode,_thres_Images[tad.outIdx]);
+        else   if (tad.task==ENCLOSE_TASK) enclosed=true;
+        _vcandidates[tad.outIdx]=thresholdAndDetectRectangles(_thres_Images[tad.inIdx],tad.param1,tad.param2,enclosed,_thres_Images[tad.outIdx]);
   //      tev.add("thres param: "+to_string(tad.param1));
 
     };
@@ -307,11 +305,19 @@ void MarkerDetector::thresholdAndDetectRectangles_thread( ){
 vector<aruco::MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetectRectangles(const cv::Mat &image ){
 
     // compute the different values of param1
+
+    int adaptiveWindowSize=_params._AdaptiveThresWindowSize;
+    if (_params._AdaptiveThresWindowSize==-1)
+        adaptiveWindowSize=max(int(3),int(15*float(image.cols)/1920.));
+    if(adaptiveWindowSize%2==0)adaptiveWindowSize++;
+
+
     vector<int> p1_values;
-    for (int i = static_cast<int>(std::max(3., _params._AdaptiveThresWindowSize - 2. * _params._AdaptiveThresWindowSize_range)); i <= _params._AdaptiveThresWindowSize + 2 * _params._AdaptiveThresWindowSize_range; i += 2)
+    for (int i = static_cast<int>(std::max(3., adaptiveWindowSize- 2. * _params._AdaptiveThresWindowSize_range)); i <= adaptiveWindowSize + 2 * _params._AdaptiveThresWindowSize_range; i += 2)
         p1_values.push_back(i);
 
     size_t nimages=p1_values.size();
+    _tooNearDistance=p1_values.back();
     _vcandidates.resize(nimages);
     _thres_Images.resize(nimages+1);
     _thres_Images.back()=image; //add at the end the original image
@@ -321,7 +327,7 @@ vector<aruco::MarkerDetector::MarkerCandidate> MarkerDetector::thresholdAndDetec
 
 
     ThreadTasks task=THRESHOLD_TASK;
-    if (_params.enclosedMarker) task=ERODE_TASK;
+    if (_params.enclosedMarker) task=ENCLOSE_TASK;
     for (size_t i = 0; i < p1_values.size(); i++){
         tad.inIdx=int(_thres_Images.size()-1);
         tad.param1=p1_values[i];
@@ -402,7 +408,7 @@ vector< MarkerDetector::MarkerCandidate> MarkerDetector::prefilterCandidates(   
             for (int c = 0; c < 4; c++)
                 vdist[c] =cv::norm( MarkerCanditates[i][c] -MarkerCanditates[j][c]);
             // if distance is too small
-            if (vdist[0] < 6 && vdist[1] < 6 && vdist[2] < 6 && vdist[3] < 6)
+            if (vdist[0] < _tooNearDistance && vdist[1] < _tooNearDistance && vdist[2] < _tooNearDistance && vdist[3] < _tooNearDistance)
                 TooNearCandidates.push_back(pair<int, int>(i, j));
         }
     }
@@ -597,6 +603,7 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
         /// CANDIDATE CLASSIFICATION: Decide which candidates are really markers
         ///////////////////////////////////////////////////////////////////////////
 
+      //  Debug::setLevel(10);
         auto markerWarpSize=getMarkerWarpSize();
 
         detectedMarkers.clear();
@@ -645,6 +652,7 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
                 detectedMarkers.push_back(MarkerCanditates[i]);
                 detectedMarkers.back().id = id;
                 detectedMarkers.back().dict_info=additionalInfo;
+                detectedMarkers.back().contourPoints=MarkerCanditates[i].contour;
                 // sort the points so that they are always in the same order no matter the camera orientation
                 std::rotate(detectedMarkers.back().begin(),
                             detectedMarkers.back().begin() + 4 - nRotations,
@@ -663,7 +671,7 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
                 _candidates.push_back(MarkerCanditates[i]);
 
         }
-        Timer.add("Marker classification");
+        Timer.add("Marker classification. ");
         if (detectedMarkers.size()==0 &&  _params._thresMethod==THRES_AUTO_FIXED && ++nAttemptsAutoFix < _params.NAttemptsAutoThresFix){
             _params._ThresHold=  10+ rand()%230 ;
             keepLookingFor=true;
@@ -671,6 +679,7 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
         else keepLookingFor=false;
     }while(keepLookingFor);
 
+  //  Debug::setLevel(5);
 
 
     if (_params._thresMethod== THRES_AUTO_FIXED){
@@ -688,25 +697,6 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
         cornerUpsample(detectedMarkers,imgToBeThresHolded.size());
         Timer.add("Corner Upsample");
     }
-    //////////////////////////////////////////////////////////////////////
-    /// CORNER REFINEMENT IF REQUIRED
-    //////////////////////////////////////////////////////////////////////
-     /// refine the corner location if enclosed markers and we did not do it via upsampling
-    if (detectedMarkers.size() > 0    /* &&_params.enclosedMarker*/ && input.size()==imgToBeThresHolded.size())
-    {
-
-        int halfwsize= 2*float(input.cols)/float(imgToBeThresHolded.cols) +0.5 ;
-        vector<Point2f> Corners;
-        for (unsigned int i = 0; i < detectedMarkers.size(); i++)
-            for (int c = 0; c < 4; c++)
-                Corners.push_back(detectedMarkers[i][c]);
-        cornerSubPix(grey, Corners, cvSize(halfwsize,halfwsize), cvSize(-1, -1),cvTermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 12, 0.005));
-        // copy back
-        for (unsigned int i = 0; i < detectedMarkers.size(); i++)
-            for (int c = 0; c < 4; c++)
-                detectedMarkers[i][c] = Corners[i * 4 + c];
-        Timer.add("Corner Refinement");
-    }
 
 
 
@@ -717,7 +707,7 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
     // sort by id
     std::sort(detectedMarkers.begin(), detectedMarkers.end());
 
-    // there might be still the case that a marker is detecoted twice because of the double border indicated earlier,
+    // there might be still the case that a marker is detected twice because of the double border indicated earlier,
     // detect and remove these cases
     vector<bool> toRemove(detectedMarkers.size(), false);
 
@@ -739,6 +729,60 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
     removeElements(detectedMarkers,toRemove);
 
 
+    //////////////////////////////////////////////////////////////////////
+    /// CORNER REFINEMENT IF REQUIRED
+    //////////////////////////////////////////////////////////////////////
+     /// refine the corner location if enclosed markers and we did not do it via upsampling
+    if (detectedMarkers.size() > 0    /* &&_params.enclosedMarker*/ && input.size()==imgToBeThresHolded.size())
+    {
+//        if (input.cols== imgToBeThresHolded.cols  ){
+//            //use the lines method for estimation of the corners
+//            for (unsigned int i = 0; i < detectedMarkers.size(); i++)
+//                refineCornerWithContourLines(detectedMarkers[i]);
+//        }
+//        else{
+
+            int halfwsize= 4*float(input.cols)/float(imgToBeThresHolded.cols) +0.5 ;
+
+            vector<Point2f> Corners;
+            for (unsigned int i = 0; i < detectedMarkers.size(); i++)
+                for (int c = 0; c < 4; c++)
+                    Corners.push_back(detectedMarkers[i][c]);
+            cornerSubPix(grey, Corners, cvSize(halfwsize,halfwsize), cvSize(-1, -1),cvTermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 12, 0.005));
+            // copy back
+            for (unsigned int i = 0; i < detectedMarkers.size(); i++)
+                for (int c = 0; c < 4; c++)
+                    detectedMarkers[i][c] = Corners[i * 4 + c];
+      //  }
+
+        Timer.add("Corner Refinement");
+    }
+
+
+
+
+//    auto setPrecision=[](double f, double prec){
+//        int x=roundf(f*prec);
+//        return  double(x)/prec;
+//    };
+
+//    auto discretizeFloat=[](float v){
+//        float f=v-float(int(v));
+//        if (f<0.25) return  float(int(v));
+//        else if (f<0.75) return  float(int(v))+0.5f;
+//        else return float(int(v+0.5f));
+
+//    };
+
+//for(auto &dm:detectedMarkers){
+//    for(auto &p:dm){
+////        p.x=setPrecision(p.x,10);
+////        p.y=setPrecision(p.y,10);
+//        p.x=discretizeFloat(p.x);
+//        p.y=discretizeFloat(p.y);
+
+//    }
+//}
 
     //////////////////////////////////////////////////////////////////////
     /// MARKER POSE ESTIMATION
@@ -768,6 +812,85 @@ void MarkerDetector::detect(const cv::Mat& input, vector<Marker>& detectedMarker
         _params.minSize= markerMinSize*(1-_params._ts);
     }
  }
+void MarkerDetector::refineCornerWithContourLines( aruco::Marker &marker,cv::Mat camMatrix,cv::Mat distCoeff ){
+    // search corners on the contour vector
+     std::vector<cv::Point> &contour=marker.contourPoints;
+       vector< int > cornerIndex(4,-1);
+       for (unsigned int j = 0; j < contour.size(); j++) {
+           for (unsigned int k = 0; k < 4; k++) {
+               if (contour[j].x == marker[k].x && contour[j].y == marker[k].y) {
+                   cornerIndex[k] = j;
+               }
+           }
+       }
+
+
+       // contour pixel in inverse order or not?
+       bool inverse;
+       if ((cornerIndex[1] > cornerIndex[0]) && (cornerIndex[2] > cornerIndex[1] || cornerIndex[2] < cornerIndex[0]))
+           inverse = false;
+       else if (cornerIndex[2] > cornerIndex[1] && cornerIndex[2] < cornerIndex[0])
+           inverse = false;
+       else
+           inverse = true;
+
+
+       // get pixel vector for each line of the marker
+       int inc = 1;
+       if (inverse)
+           inc = -1;
+
+       // undistort contour
+       vector< Point2f > contour2f;
+       if(!camMatrix.empty() && !distCoeff.empty()){
+       for (unsigned int i = 0; i < contour.size(); i++)
+           contour2f.push_back(cv::Point2f(contour[i].x, contour[i].y));
+       if (!camMatrix.empty() && !distCoeff.empty())
+           cv::undistortPoints(contour2f, contour2f, camMatrix, distCoeff, cv::Mat(), camMatrix);
+
+       }
+       else {
+           contour2f.reserve(contour.size());
+           for(auto p:contour)
+               contour2f.push_back(cv::Point2f(p.x,p.y));
+       }
+
+       vector< std::vector< cv::Point2f > > contourLines;
+       contourLines.resize(4);
+       for (unsigned int l = 0; l < 4; l++) {
+           for (int j = (int)cornerIndex[l]; j != (int)cornerIndex[(l + 1) % 4]; j += inc) {
+               if (j == (int)contour.size() && !inverse)
+                   j = 0;
+               else if (j == 0 && inverse)
+                   j = contour.size() - 1;
+               contourLines[l].push_back(contour2f[j]);
+               if (j == (int)cornerIndex[(l + 1) % 4])
+                   break; // this has to be added because of the previous ifs
+           }
+       }
+
+       // interpolate marker lines
+       vector< Point3f > lines;
+       lines.resize(4);
+       for (unsigned int j = 0; j < lines.size(); j++)
+           interpolate2Dline(contourLines[j], lines[j]);
+
+       // get cross points of lines
+       vector< Point2f > crossPoints;
+       crossPoints.resize(4);
+       for (unsigned int i = 0; i < 4; i++)
+           crossPoints[i] = getCrossPoint(lines[(i - 1) % 4], lines[i]);
+
+       // distort corners again if undistortion was performed
+       if (!camMatrix.empty() && !distCoeff.empty())
+           distortPoints(crossPoints, crossPoints, camMatrix, distCoeff);
+
+       // reassing points
+       for (unsigned int j = 0; j < 4; j++){
+          // cout<<marker[j]<<" "<<crossPoints[j]<<endl;
+           marker[j] = crossPoints[j];
+       }
+}
 
 
 
@@ -833,6 +956,7 @@ void MarkerDetector::enlargeMarkerCandidate(MarkerCandidate &cand,int fact){
 }
 
 
+
 int  MarkerDetector::getMinMarkerSizePix(cv::Size orginput_imageSize)const{
     if (_params.minSize==-1 && _params.minSize_pix==-1)return 0;
     // calcualte the min_max contour sizes
@@ -889,7 +1013,7 @@ int MarkerDetector::perimeter(const vector<Point2f>& a)
 
 /**
      */
-void MarkerDetector::interpolate2Dline(const std::vector<Point2f>& inPoints, Point3f& outLine)
+void MarkerDetector::interpolate2Dline(const std::vector<cv::Point2f>& inPoints, cv::Point3f& outLine)
 {
     float minX, maxX, minY, maxY;
     minX = maxX = inPoints[0].x;
@@ -1067,7 +1191,10 @@ void MarkerDetector::setDictionary(int dict_type,
 
 void MarkerDetector::setDictionary(string dict_type, float error_correction_rate)
 {
-    markerIdDetector = MarkerLabeler::create(dict_type, std::to_string(error_correction_rate));
+		auto _to_string=[](float i){
+			std::stringstream str;str<<i;return str.str();
+			};
+    markerIdDetector = MarkerLabeler::create(dict_type, _to_string(error_correction_rate));
 }
 
 
@@ -1079,6 +1206,21 @@ cv::Mat MarkerDetector::getThresholdedImage(uint32_t idx)
 }
 
 
+
+/**
+ */
+void MarkerDetector::distortPoints(vector< cv::Point2f > in, vector< cv::Point2f > &out, const Mat &camMatrix, const Mat &distCoeff) {
+    // trivial extrinsics
+    cv::Mat Rvec = cv::Mat(3, 1, CV_32FC1, cv::Scalar::all(0));
+    cv::Mat Tvec = Rvec.clone();
+    // calculate 3d points and then reproject, so opencv makes the distortion internally
+    vector< cv::Point3f > cornersPoints3d;
+    for (unsigned int i = 0; i < in.size(); i++)
+        cornersPoints3d.push_back(cv::Point3f((in[i].x - camMatrix.at< float >(0, 2)) / camMatrix.at< float >(0, 0), // x
+                                              (in[i].y - camMatrix.at< float >(1, 2)) / camMatrix.at< float >(1, 1), // y
+                                              1)); // z
+    cv::projectPoints(cornersPoints3d, Rvec, Tvec, camMatrix, distCoeff, out);
+}
 
 
 
